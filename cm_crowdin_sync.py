@@ -240,7 +240,7 @@ cm_caf = []
 
 for item in items:
     # Create tmp dir for download of AOSP base file
-    path_to_values = item.attributes["path"].value
+    path_to_values = item.attributes['path'].value
     subprocess.call(['mkdir', '-p', 'tmp/' + path_to_values])
     # Create cm_caf.xml - header
     f = codecs.open(path_to_values + '/cm_caf.xml', 'w', 'utf-8')
@@ -267,7 +267,7 @@ for item in items:
     item_aosp = item.getElementsByTagName('aosp')
     for aosp_item in item_aosp:
         url = aosp_item.firstChild.nodeValue
-        xml_file = aosp_item.attributes["file"].value
+        xml_file = aosp_item.attributes['file'].value
         path_to_base = 'tmp/' + path_to_values + '/' + xml_file
         path_to_cm = path_to_values + '/' + xml_file
         urlretrieve(url, path_to_base)
@@ -286,19 +286,13 @@ print(subprocess.check_output(['crowdin-cli', 'upload', 'sources']))
 
 print('\nSTEP 3: Download Crowdin translations')
 # Execute 'crowdin-cli download' and show output
-print(subprocess.check_output(['crowdin-cli', "download"]))
+print(subprocess.check_output(['crowdin-cli', 'download']))
 
-print('\nSTEP 4A: Clean up of source cm_caf.xmls')
-# Remove all cm_caf.xml files, which you can find in the list 'cm_caf'
-for cm_caf_file in cm_caf:
-    print('Removing ' + cm_caf_file)
-    os.remove(cm_caf_file)
-
-print('\nSTEP 4B: Clean up of temp dir')
+print('\nSTEP 4: Remove temp dir')
 # We are done with cm_caf.xml files, so remove tmp/
 shutil.rmtree(os.getcwd() + '/tmp')
 
-print('\nSTEP 4C: Clean up of empty translations')
+print('\nSTEP 5: Remove useless empty translations')
 # Some line of code that I found to find all XML files
 result = [os.path.join(dp, f) for dp, dn, filenames in os.walk(os.getcwd()) for f in filenames if os.path.splitext(f)[1] == '.xml']
 for xml_file in result:
@@ -314,9 +308,18 @@ for xml_file in result:
         print('Removing ' + xml_file)
         os.remove(xml_file)
 
-print('\nSTEP 5: Push translations to Git')
+print('\nSTEP 5: Create list of pushable translations')
 # Get all files that Crowdin pushed
 proc = subprocess.Popen(['crowdin-cli', 'list', 'sources'],stdout=subprocess.PIPE)
+print(subprocess.check_output(['crowdin-cli', 'list', 'sources'])) # seems to fix some problems when the above is executed
+
+print('\nSTEP 6: Remove unwanted source cm_caf.xmls')
+# Remove all cm_caf.xml files, which you can find in the list 'cm_caf'
+for cm_caf_file in cm_caf:
+    print('Removing ' + cm_caf_file)
+    os.remove(cm_caf_file)
+
+print('\nSTEP 7: Commit to Gerrit')
 xml = minidom.parse('android/default.xml')
 xml_extra = minidom.parse('extra_packages.xml')
 items = xml.getElementsByTagName('project')
@@ -337,7 +340,7 @@ for path in iter(proc.stdout.readline,''):
             for project_item in items:
                 # We need to have the Github repository for the git push url.
                 # Obtain them from android/default.xml or extra_packages.xml.
-                if project_item.attributes["path"].value == good_path:
+                if project_item.attributes['path'].value == good_path:
                     if project_item.hasAttribute('revision'):
                         branch = project_item.attributes['revision'].value
                     else:
@@ -345,4 +348,4 @@ for path in iter(proc.stdout.readline,''):
                     print('Committing ' + project_item.attributes['name'].value + ' on branch ' + branch + ' (based on android/default.xml or extra_packages.xml)')
                     push_as_commit(good_path, project_item.attributes['name'].value, branch)
 
-print('\nSTEP 6: Done!')
+print('\nDone!')
